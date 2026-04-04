@@ -74,6 +74,15 @@ function sendJson(res, statusCode, payload) {
   res.end(JSON.stringify(payload));
 }
 
+function sendHeadOk(res) {
+  res.writeHead(200, {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS,HEAD",
+    "Access-Control-Allow-Headers": "Content-Type",
+  });
+  res.end();
+}
+
 function notFound(res) {
   sendJson(res, 404, { error: "Not Found" });
 }
@@ -84,14 +93,29 @@ async function handleRequest(req, res) {
   if (req.method === "OPTIONS") {
     res.writeHead(204, {
       "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+      "Access-Control-Allow-Methods": "GET,POST,OPTIONS,HEAD",
       "Access-Control-Allow-Headers": "Content-Type",
     });
     res.end();
     return;
   }
 
-  if (req.method === "GET" && url.pathname === "/health") {
+  if ((req.method === "GET" || req.method === "HEAD") && url.pathname === "/") {
+    if (req.method === "HEAD") {
+      sendHeadOk(res);
+      return;
+    }
+
+    sendJson(res, 200, { ok: true, service: "visitor-backend" });
+    return;
+  }
+
+  if ((req.method === "GET" || req.method === "HEAD") && url.pathname === "/health") {
+    if (req.method === "HEAD") {
+      sendHeadOk(res);
+      return;
+    }
+
     sendJson(res, 200, { ok: true });
     return;
   }

@@ -1,4 +1,5 @@
 const cors = require("cors");
+const cookieParser = require("cookie-parser");
 const express = require("express");
 
 const { authRouter } = require("./routes/auth");
@@ -12,6 +13,7 @@ function createServer() {
     origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(",") : "*",
     credentials: true,
   }));
+  app.use(cookieParser());
   app.use(express.json({ limit: "1mb" }));
 
   app.get("/", (_req, res) => {

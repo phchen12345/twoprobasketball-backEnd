@@ -19,7 +19,8 @@ PORT=8080
 HOST=0.0.0.0
 PGSSLMODE=disable
 CORS_ORIGIN=http://localhost:3000
-JWT_EXPIRES_IN=7d
+JWT_EXPIRES_IN=15m
+REFRESH_TOKEN_DAYS=30
 ```
 
 `PGSSLMODE=disable` is only for local environments that do not need SSL.
@@ -51,6 +52,8 @@ http://localhost:8080
 - `GET /api/visitors`
 - `POST /api/visitors/increment`
 - `POST /api/auth/google`
+- `POST /api/auth/refresh`
+- `POST /api/auth/logout`
 - `GET /api/auth/me`
 - `GET /api/notifications/subscriptions`
 - `POST /api/notifications/subscriptions`
@@ -74,6 +77,7 @@ Response:
 ```json
 {
   "accessToken": "jwt",
+  "csrfToken": "csrf-token",
   "user": {
     "id": "uuid",
     "email": "user@example.com",
@@ -84,10 +88,21 @@ Response:
 }
 ```
 
-Use the returned token on protected routes:
+The backend also sets:
+
+- `basketball_refresh_token`: HttpOnly cookie
+- `basketball_csrf_token`: readable cookie for `X-CSRF-Token`
+
+Use the returned access token on protected routes:
 
 ```http
 Authorization: Bearer jwt
+```
+
+Use the CSRF token on state-changing cookie-authenticated routes:
+
+```http
+X-CSRF-Token: csrf-token
 ```
 
 ## Database

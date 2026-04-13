@@ -1,7 +1,6 @@
 const express = require("express");
 
 const { pool } = require("../db");
-const { requireCsrf } = require("../middleware/requireCsrf");
 const { requireAuth } = require("../middleware/requireAuth");
 
 const meRouter = express.Router();
@@ -36,7 +35,7 @@ meRouter.get("/favorite-teams", async (req, res, next) => {
   }
 });
 
-meRouter.post("/favorite-teams", requireCsrf, async (req, res, next) => {
+meRouter.post("/favorite-teams", async (req, res, next) => {
   try {
     const { league, teamId, teamName, teamLogo = null } = req.body || {};
 
@@ -61,7 +60,7 @@ meRouter.post("/favorite-teams", requireCsrf, async (req, res, next) => {
   }
 });
 
-meRouter.delete("/favorite-teams/:id", requireCsrf, async (req, res, next) => {
+meRouter.delete("/favorite-teams/:id", async (req, res, next) => {
   try {
     await pool.query(
       "DELETE FROM favorite_teams WHERE id = $1 AND user_id = $2",

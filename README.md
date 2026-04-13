@@ -15,7 +15,7 @@ GOOGLE_CLIENT_ID=your-google-oauth-client-id.apps.googleusercontent.com
 Optional:
 
 ```text
-PORT=4000
+PORT=8080
 HOST=0.0.0.0
 PGSSLMODE=disable
 CORS_ORIGIN=http://localhost:3000
@@ -42,7 +42,7 @@ npm start
 Default server:
 
 ```text
-http://localhost:4000
+http://localhost:8080
 ```
 
 ## API

@@ -78,10 +78,19 @@ authRouter.post("/google", async (req, res, next) => {
       return;
     }
 
-    const ticket = await googleClient.verifyIdToken({
-      idToken,
-      audience: process.env.GOOGLE_CLIENT_ID,
-    });
+    let ticket;
+
+    try {
+      ticket = await googleClient.verifyIdToken({
+        idToken,
+        audience: process.env.GOOGLE_CLIENT_ID,
+      });
+    } catch (error) {
+      console.warn("Google token verification failed:", error.message);
+      res.status(401).json({ error: "Invalid Google token" });
+      return;
+    }
+
     const payload = ticket.getPayload();
 
     if (!payload?.email || !payload.sub) {

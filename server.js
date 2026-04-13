@@ -3,7 +3,7 @@ require("dotenv").config();
 const { createServer } = require("./src/server");
 const { closePool, ensureDatabase } = require("./src/db");
 
-const PORT = Number(process.env.PORT || 4000);
+const PORT = Number(process.env.PORT || 8080);
 const HOST = process.env.HOST || "0.0.0.0";
 
 async function startServer() {

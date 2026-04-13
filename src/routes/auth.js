@@ -155,39 +155,70 @@ async function revokeRefreshSession(refreshToken, csrfToken) {
 
 authRouter.post("/google", async (req, res, next) => {
   try {
-    const { idToken } = req.body || {};
+    const { accessToken, idToken } = req.body || {};
 
-    if (!idToken) {
-      res.status(400).json({ error: "Missing idToken" });
+    if (!idToken && !accessToken) {
+      res.status(400).json({ error: "Missing Google token" });
       return;
     }
 
-    let ticket;
+    let profile;
 
-    try {
-      ticket = await googleClient.verifyIdToken({
-        idToken,
-        audience: process.env.GOOGLE_CLIENT_ID,
+    if (idToken) {
+      let ticket;
+
+      try {
+        ticket = await googleClient.verifyIdToken({
+          idToken,
+          audience: process.env.GOOGLE_CLIENT_ID,
+        });
+      } catch (error) {
+        console.warn("Google token verification failed:", error.message);
+        res.status(401).json({ error: "Invalid Google token" });
+        return;
+      }
+
+      const payload = ticket.getPayload();
+
+      if (!payload?.email || !payload.sub) {
+        res.status(401).json({ error: "Invalid Google token" });
+        return;
+      }
+
+      profile = {
+        sub: payload.sub,
+        email: payload.email,
+        name: payload.name || null,
+        picture: payload.picture || null,
+      };
+    } else {
+      const response = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
       });
-    } catch (error) {
-      console.warn("Google token verification failed:", error.message);
-      res.status(401).json({ error: "Invalid Google token" });
-      return;
+
+      if (!response.ok) {
+        res.status(401).json({ error: "Invalid Google token" });
+        return;
+      }
+
+      const payload = await response.json();
+
+      if (!payload?.email || !payload.sub) {
+        res.status(401).json({ error: "Invalid Google token" });
+        return;
+      }
+
+      profile = {
+        sub: payload.sub,
+        email: payload.email,
+        name: payload.name || null,
+        picture: payload.picture || null,
+      };
     }
 
-    const payload = ticket.getPayload();
-
-    if (!payload?.email || !payload.sub) {
-      res.status(401).json({ error: "Invalid Google token" });
-      return;
-    }
-
-    const user = await upsertGoogleUser({
-      sub: payload.sub,
-      email: payload.email,
-      name: payload.name || null,
-      picture: payload.picture || null,
-    });
+    const user = await upsertGoogleUser(profile);
 
     const session = await createRefreshSession(user.id);
     setAuthCookies(res, session.refreshToken, session.csrfToken);

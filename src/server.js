@@ -2,6 +2,7 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const express = require("express");
 
+const { adminRouter } = require("./routes/admin");
 const { authRouter } = require("./routes/auth");
 const { notificationsRouter } = require("./routes/notifications");
 const { visitorsRouter } = require("./routes/visitors");
@@ -26,6 +27,7 @@ function createServer() {
 
   app.use("/api/visitors", visitorsRouter);
   app.use("/api/auth", authRouter);
+  app.use("/api/admin", adminRouter);
   app.use("/api/notifications", notificationsRouter);
 
   app.use((_req, res) => {

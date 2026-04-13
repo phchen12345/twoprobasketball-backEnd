@@ -102,6 +102,21 @@ async function ensureDatabase() {
       UNIQUE (user_id, league, team_id)
     )
   `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS notification_reads (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      notification_key TEXT NOT NULL,
+      read_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (user_id, notification_key)
+    )
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS notification_reads_user_id_idx
+    ON notification_reads (user_id)
+  `);
 }
 
 async function closePool() {

@@ -8,6 +8,57 @@ const notificationsRouter = express.Router();
 
 notificationsRouter.use(requireAuth);
 
+notificationsRouter.get("/reads", async (req, res, next) => {
+  try {
+    const result = await pool.query(`
+      SELECT notification_key, read_at
+      FROM notification_reads
+      WHERE user_id = $1
+      ORDER BY read_at DESC
+    `, [req.user.id]);
+
+    res.json({
+      readNotifications: result.rows.map((row) => ({
+        key: row.notification_key,
+        readAt: row.read_at,
+      })),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+notificationsRouter.post("/reads", requireCsrf, async (req, res, next) => {
+  try {
+    const { keys } = req.body || {};
+
+    if (!Array.isArray(keys)) {
+      res.status(400).json({ error: "Missing keys" });
+      return;
+    }
+
+    const notificationKeys = [...new Set(
+      keys.filter((key) => typeof key === "string" && key.trim()),
+    )];
+
+    if (notificationKeys.length === 0) {
+      res.status(400).json({ error: "Missing keys" });
+      return;
+    }
+
+    await pool.query(`
+      INSERT INTO notification_reads (user_id, notification_key, read_at)
+      SELECT $1, unnest($2::text[]), NOW()
+      ON CONFLICT (user_id, notification_key)
+      DO UPDATE SET read_at = EXCLUDED.read_at
+    `, [req.user.id, notificationKeys]);
+
+    res.status(204).end();
+  } catch (error) {
+    next(error);
+  }
+});
+
 notificationsRouter.get("/subscriptions", async (req, res, next) => {
   try {
     const result = await pool.query(`

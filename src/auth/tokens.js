@@ -1,7 +1,7 @@
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 
-const ACCESS_TOKEN_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "15m";
+const ACCESS_TOKEN_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "1d";
 const REFRESH_TOKEN_COOKIE = "basketball_refresh_token";
 const CSRF_TOKEN_COOKIE = "basketball_csrf_token";
 const REFRESH_TOKEN_DAYS = Number(process.env.REFRESH_TOKEN_DAYS || 30);
@@ -52,7 +52,11 @@ function cookieOptions({ httpOnly }) {
 }
 
 function setAuthCookies(res, refreshToken, csrfToken) {
-  res.cookie(REFRESH_TOKEN_COOKIE, refreshToken, cookieOptions({ httpOnly: true }));
+  res.cookie(
+    REFRESH_TOKEN_COOKIE,
+    refreshToken,
+    cookieOptions({ httpOnly: true }),
+  );
   res.cookie(CSRF_TOKEN_COOKIE, csrfToken, cookieOptions({ httpOnly: false }));
 }
 

@@ -11,10 +11,14 @@ const { visitorsRouter } = require("./routes/visitors");
 function createServer() {
   const app = express();
 
-  app.use(cors({
-    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(",") : "*",
-    credentials: true,
-  }));
+  app.use(
+    cors({
+      origin: process.env.CORS_ORIGIN
+        ? process.env.CORS_ORIGIN.split(",")
+        : "*",
+      credentials: true,
+    }),
+  );
   app.use(cookieParser());
   app.use(express.json({ limit: "1mb" }));
 

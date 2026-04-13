@@ -33,7 +33,7 @@ notificationsRouter.get("/last-read", async (req, res, next) => {
 /**
  * 🥇 標記全部通知為已讀
  */
-notificationsRouter.post("/read-all", requireCsrf, async (req, res, next) => {
+notificationsRouter.post("/read-all", async (req, res, next) => {
   try {
     await pool.query(
       `

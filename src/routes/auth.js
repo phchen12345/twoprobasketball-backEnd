@@ -11,7 +11,6 @@ const {
   setAuthCookies,
   signAccessToken,
 } = require("../auth/tokens");
-const { requireCsrf } = require("../middleware/requireCsrf");
 const { requireAuth } = require("../middleware/requireAuth");
 
 const authRouter = express.Router();
@@ -69,9 +68,9 @@ async function createRefreshSession(userId) {
   const expiresAt = refreshTokenExpiry();
 
   await pool.query(`
-    INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
-    VALUES ($1, $2, $3)
-  `, [userId, tokenHash, expiresAt]);
+    INSERT INTO refresh_tokens (user_id, token_hash, csrf_token_hash, expires_at)
+    VALUES ($1, $2, $3, $4)
+  `, [userId, tokenHash, hashToken(csrfToken), expiresAt]);
 
   return {
     csrfToken,
@@ -79,8 +78,14 @@ async function createRefreshSession(userId) {
   };
 }
 
-async function rotateRefreshSession(refreshToken) {
+function readCsrfHeader(req) {
+  const value = req.headers["x-csrf-token"];
+  return Array.isArray(value) ? value[0] : value || null;
+}
+
+async function rotateRefreshSession(refreshToken, csrfToken) {
   const tokenHash = hashToken(refreshToken);
+  const csrfTokenHash = hashToken(csrfToken);
   const client = await pool.connect();
 
   try {
@@ -97,10 +102,11 @@ async function rotateRefreshSession(refreshToken) {
       FROM refresh_tokens
       JOIN users ON users.id = refresh_tokens.user_id
       WHERE refresh_tokens.token_hash = $1
+        AND refresh_tokens.csrf_token_hash = $2
         AND refresh_tokens.revoked_at IS NULL
         AND refresh_tokens.expires_at > NOW()
       FOR UPDATE
-    `, [tokenHash]);
+    `, [tokenHash, csrfTokenHash]);
     const user = result.rows[0];
 
     if (!user) {
@@ -114,17 +120,17 @@ async function rotateRefreshSession(refreshToken) {
     );
 
     const nextRefreshToken = generateOpaqueToken();
-    const csrfToken = generateOpaqueToken();
+    const nextCsrfToken = generateOpaqueToken();
 
     await client.query(`
-      INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
-      VALUES ($1, $2, $3)
-    `, [user.id, hashToken(nextRefreshToken), refreshTokenExpiry()]);
+      INSERT INTO refresh_tokens (user_id, token_hash, csrf_token_hash, expires_at)
+      VALUES ($1, $2, $3, $4)
+    `, [user.id, hashToken(nextRefreshToken), hashToken(nextCsrfToken), refreshTokenExpiry()]);
 
     await client.query("COMMIT");
 
     return {
-      csrfToken,
+      csrfToken: nextCsrfToken,
       refreshToken: nextRefreshToken,
       user,
     };
@@ -136,10 +142,14 @@ async function rotateRefreshSession(refreshToken) {
   }
 }
 
-async function revokeRefreshSession(refreshToken) {
+async function revokeRefreshSession(refreshToken, csrfToken) {
   await pool.query(
-    "UPDATE refresh_tokens SET revoked_at = NOW() WHERE token_hash = $1 AND revoked_at IS NULL",
-    [hashToken(refreshToken)],
+    `UPDATE refresh_tokens
+     SET revoked_at = NOW()
+     WHERE token_hash = $1
+       AND csrf_token_hash = $2
+       AND revoked_at IS NULL`,
+    [hashToken(refreshToken), hashToken(csrfToken)],
   );
 }
 
@@ -192,16 +202,22 @@ authRouter.post("/google", async (req, res, next) => {
   }
 });
 
-authRouter.post("/refresh", requireCsrf, async (req, res, next) => {
+authRouter.post("/refresh", async (req, res, next) => {
   try {
     const refreshToken = readRefreshToken(req);
+    const csrfToken = readCsrfHeader(req);
 
     if (!refreshToken) {
       res.status(401).json({ error: "Missing refresh token" });
       return;
     }
 
-    const session = await rotateRefreshSession(refreshToken);
+    if (!csrfToken) {
+      res.status(403).json({ error: "Missing CSRF token" });
+      return;
+    }
+
+    const session = await rotateRefreshSession(refreshToken, csrfToken);
 
     if (!session) {
       clearAuthCookies(res);
@@ -221,12 +237,13 @@ authRouter.post("/refresh", requireCsrf, async (req, res, next) => {
   }
 });
 
-authRouter.post("/logout", requireCsrf, async (req, res, next) => {
+authRouter.post("/logout", async (req, res, next) => {
   try {
     const refreshToken = readRefreshToken(req);
+    const csrfToken = readCsrfHeader(req);
 
-    if (refreshToken) {
-      await revokeRefreshSession(refreshToken);
+    if (refreshToken && csrfToken) {
+      await revokeRefreshSession(refreshToken, csrfToken);
     }
 
     clearAuthCookies(res);

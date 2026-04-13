@@ -59,10 +59,16 @@ async function ensureDatabase() {
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       token_hash TEXT NOT NULL UNIQUE,
+      csrf_token_hash TEXT,
       expires_at TIMESTAMPTZ NOT NULL,
       revoked_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
+  `);
+
+  await pool.query(`
+    ALTER TABLE refresh_tokens
+    ADD COLUMN IF NOT EXISTS csrf_token_hash TEXT
   `);
 
   await pool.query(`

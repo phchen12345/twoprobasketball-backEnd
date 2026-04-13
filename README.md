@@ -1,6 +1,6 @@
-# Visitor Counter Backend
+# Basketball Backend
 
-Simple Node.js backend for storing website visitor counts in PostgreSQL.
+Node.js backend for visitor counts, users, Google login, and notification subscriptions.
 
 ## Environment variables
 
@@ -8,6 +8,8 @@ Required:
 
 ```text
 DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DBNAME
+JWT_SECRET=replace-with-a-long-random-secret
+GOOGLE_CLIENT_ID=your-google-oauth-client-id.apps.googleusercontent.com
 ```
 
 Optional:
@@ -16,6 +18,8 @@ Optional:
 PORT=4000
 HOST=0.0.0.0
 PGSSLMODE=disable
+CORS_ORIGIN=http://localhost:3000
+JWT_EXPIRES_IN=7d
 ```
 
 `PGSSLMODE=disable` is only for local environments that do not need SSL.
@@ -46,10 +50,49 @@ http://localhost:4000
 - `GET /health`
 - `GET /api/visitors`
 - `POST /api/visitors/increment`
+- `POST /api/auth/google`
+- `GET /api/auth/me`
+- `GET /api/notifications/subscriptions`
+- `POST /api/notifications/subscriptions`
+- `DELETE /api/notifications/subscriptions/:id`
+
+### Google login
+
+Request:
+
+```http
+POST /api/auth/google
+Content-Type: application/json
+
+{
+  "idToken": "google-identity-services-id-token"
+}
+```
+
+Response:
+
+```json
+{
+  "accessToken": "jwt",
+  "user": {
+    "id": "uuid",
+    "email": "user@example.com",
+    "name": "User",
+    "avatarUrl": "https://...",
+    "role": "user"
+  }
+}
+```
+
+Use the returned token on protected routes:
+
+```http
+Authorization: Bearer jwt
+```
 
 ## Database
 
-On startup, the service creates this table automatically if it does not exist:
+On startup, the service creates these tables automatically if they do not exist:
 
 ```sql
 CREATE TABLE IF NOT EXISTS visitor_counts (
@@ -59,4 +102,8 @@ CREATE TABLE IF NOT EXISTS visitor_counts (
 );
 ```
 
-The service keeps a single counter row with `id = 1`.
+It also creates:
+
+- `users`
+- `user_identities`
+- `notification_subscriptions`

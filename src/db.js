@@ -89,6 +89,19 @@ async function ensureDatabase() {
       UNIQUE (user_id, type, target_type, target_id)
     )
   `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS favorite_teams (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      league TEXT NOT NULL,
+      team_id TEXT NOT NULL,
+      team_name TEXT NOT NULL,
+      team_logo TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (user_id, league, team_id)
+    )
+  `);
 }
 
 async function closePool() {

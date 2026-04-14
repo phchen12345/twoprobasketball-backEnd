@@ -54,6 +54,60 @@ notificationsRouter.post("/read-all", async (req, res, next) => {
 /**
  * ⭐ 保留：通知訂閱（這段不用動）
  */
+notificationsRouter.get("/read-keys", async (req, res, next) => {
+  try {
+    const result = await pool.query(
+      `
+      SELECT notification_key
+      FROM notification_reads
+      WHERE user_id = $1
+      `,
+      [req.user.id],
+    );
+
+    res.json({
+      readKeys: result.rows.map((row) => row.notification_key),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+notificationsRouter.post("/read", async (req, res, next) => {
+  try {
+    const { notificationKeys } = req.body || {};
+
+    if (!Array.isArray(notificationKeys)) {
+      res.status(400).json({
+        error: "notificationKeys must be an array",
+      });
+      return;
+    }
+
+    const keys = [...new Set(notificationKeys)].filter(
+      (key) => typeof key === "string" && key.length > 0,
+    );
+
+    if (keys.length === 0) {
+      res.status(204).end();
+      return;
+    }
+
+    await pool.query(
+      `
+      INSERT INTO notification_reads (user_id, notification_key)
+      SELECT $1, unnest($2::text[])
+      ON CONFLICT (user_id, notification_key)
+      DO UPDATE SET read_at = NOW()
+      `,
+      [req.user.id, keys],
+    );
+
+    res.status(204).end();
+  } catch (error) {
+    next(error);
+  }
+});
 notificationsRouter.get("/subscriptions", async (req, res, next) => {
   try {
     const result = await pool.query(

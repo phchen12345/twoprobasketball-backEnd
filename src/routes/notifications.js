@@ -1,7 +1,6 @@
 const express = require("express");
 
 const { pool } = require("../db");
-const { requireCsrf } = require("../middleware/requireCsrf");
 const { requireAuth } = require("../middleware/requireAuth");
 
 const notificationsRouter = express.Router();
@@ -138,7 +137,6 @@ notificationsRouter.get("/subscriptions", async (req, res, next) => {
 
 notificationsRouter.post(
   "/subscriptions",
-  requireCsrf,
   async (req, res, next) => {
     try {
       const { type, targetType, targetId, enabled = true } = req.body || {};
@@ -183,7 +181,6 @@ notificationsRouter.post(
 
 notificationsRouter.delete(
   "/subscriptions/:id",
-  requireCsrf,
   async (req, res, next) => {
     try {
       await pool.query(

@@ -1,7 +1,10 @@
 const express = require("express");
 const { pool } = require("../db");
+const { requireAuth } = require("../middleware/requireAuth");
 
 const visitorsRouter = express.Router();
+
+visitorsRouter.use(requireAuth);
 
 async function readState() {
   const result = await pool.query(

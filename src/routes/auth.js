@@ -6,10 +6,7 @@ const {
   clearAuthCookies,
   generateOpaqueToken,
   hashToken,
-  readCsrfCookie,
-  readRefreshToken,
   refreshTokenExpiry,
-  setAuthCookies,
   signAccessToken,
 } = require("../auth/tokens");
 const { requireAuth } = require("../middleware/requireAuth");
@@ -81,6 +78,11 @@ async function createRefreshSession(userId) {
 
 function readCsrfHeader(req) {
   const value = req.headers["x-csrf-token"];
+  return Array.isArray(value) ? value[0] : value || null;
+}
+
+function readRefreshTokenHeader(req) {
+  const value = req.headers["x-refresh-token"];
   return Array.isArray(value) ? value[0] : value || null;
 }
 
@@ -222,11 +224,11 @@ authRouter.post("/google", async (req, res, next) => {
     const user = await upsertGoogleUser(profile);
 
     const session = await createRefreshSession(user.id);
-    setAuthCookies(res, session.refreshToken, session.csrfToken);
 
     res.json({
       accessToken: signAccessToken(user),
       csrfToken: session.csrfToken,
+      refreshToken: session.refreshToken,
       user: publicUser(user),
     });
   } catch (error) {
@@ -236,16 +238,15 @@ authRouter.post("/google", async (req, res, next) => {
 
 authRouter.post("/refresh", async (req, res, next) => {
   try {
-    const refreshToken = readRefreshToken(req);
+    const refreshToken = readRefreshTokenHeader(req);
     const csrfToken = readCsrfHeader(req);
-    const csrfCookie = readCsrfCookie(req);
 
     if (!refreshToken) {
       res.status(401).json({ error: "Missing refresh token" });
       return;
     }
 
-    if (!csrfToken || !csrfCookie || csrfToken !== csrfCookie) {
+    if (!csrfToken) {
       res.status(403).json({ error: "Invalid CSRF token" });
       return;
     }
@@ -258,11 +259,10 @@ authRouter.post("/refresh", async (req, res, next) => {
       return;
     }
 
-    setAuthCookies(res, session.refreshToken, session.csrfToken);
-
     res.json({
       accessToken: signAccessToken(session.user),
       csrfToken: session.csrfToken,
+      refreshToken: session.refreshToken,
       user: publicUser(session.user),
     });
   } catch (error) {
@@ -272,16 +272,15 @@ authRouter.post("/refresh", async (req, res, next) => {
 
 authRouter.post("/logout", async (req, res, next) => {
   try {
-    const refreshToken = readRefreshToken(req);
+    const refreshToken = readRefreshTokenHeader(req);
     const csrfToken = readCsrfHeader(req);
-    const csrfCookie = readCsrfCookie(req);
 
     if (!refreshToken) {
       res.status(401).json({ error: "Missing refresh token" });
       return;
     }
 
-    if (!csrfToken || !csrfCookie || csrfToken !== csrfCookie) {
+    if (!csrfToken) {
       res.status(403).json({ error: "Invalid CSRF token" });
       return;
     }
